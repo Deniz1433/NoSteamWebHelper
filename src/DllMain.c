@@ -2,7 +2,47 @@
 #include <wtsapi32.h>
 #include <winternl.h>
 
+#define CMD_ON  1001
+#define CMD_OFF 1002
+
+static volatile BOOL _state_on = FALSE;
+static volatile HANDLE _hThread = NULL;
+
 static DWORD WINAPI ThreadProc(LPVOID lpParameter);
+
+static BOOL IsGameRunning(void)
+{
+    HKEY hKey = NULL;
+    BOOL _ = FALSE;
+    if (RegOpenKeyExW(HKEY_CURRENT_USER, L"SOFTWARE\\Valve\\Steam", REG_OPTION_NON_VOLATILE, KEY_QUERY_VALUE, &hKey) == ERROR_SUCCESS)
+    {
+        RegGetValueW(hKey, NULL, L"RunningAppID", RRF_RT_REG_DWORD, NULL, (PVOID)&_, &((DWORD){sizeof(BOOL)}));
+        RegCloseKey(hKey);
+    }
+    return _;
+}
+
+static VOID KillSteamHelpers(void)
+{
+    WTS_PROCESS_INFOW *pProcessInfo = {};
+    DWORD $ = {};
+    WTSEnumerateProcessesW(WTS_CURRENT_SERVER_HANDLE, 0, 1, &pProcessInfo, &$);
+    for (DWORD _i = {}; _i < $; _i++)
+        if (CompareStringOrdinal(pProcessInfo[_i].pProcessName, -1, L"steamwebhelper.exe", -1, TRUE) == CSTR_EQUAL)
+        {
+            HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE, FALSE,
+                                          pProcessInfo[_i].ProcessId);
+            if (hProcess)
+            {
+                PROCESS_BASIC_INFORMATION _p = {};
+                NtQueryInformationProcess(hProcess, ProcessBasicInformation, &_p, sizeof(PROCESS_BASIC_INFORMATION), NULL);
+                if (_p.InheritedFromUniqueProcessId == GetCurrentProcessId())
+                    TerminateProcess(hProcess, EXIT_SUCCESS);
+                CloseHandle(hProcess);
+            }
+        }
+    WTSFreeMemory(pProcessInfo);
+}
 
 static LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -25,19 +65,29 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
         if (lParam == WM_RBUTTONDOWN)
         {
             HMENU hMenu = CreatePopupMenu();
-            AppendMenuW(hMenu, MF_STRING, FALSE, L"On");
-            AppendMenuW(hMenu, MF_STRING, TRUE, L"Off");
+            AppendMenuW(hMenu, MF_STRING | (_state_on ? MF_CHECKED : MF_UNCHECKED), CMD_ON,  L"Steam on");
+            AppendMenuW(hMenu, MF_STRING | (_state_on ? MF_UNCHECKED : MF_CHECKED), CMD_OFF, L"Steam off");
             SetForegroundWindow(hWnd);
 
-            POINT _ = {};
-            GetCursorPos(&_);
-            RegSetKeyValueW(
-                HKEY_CURRENT_USER, L"SOFTWARE\\Valve\\Steam", L"RunningAppID", REG_DWORD,
-                &((DWORD){TrackPopupMenu(hMenu, TPM_LEFTALIGN | TPM_TOPALIGN | TPM_LEFTBUTTON | TPM_RETURNCMD, _.x, _.y,
-                                         0, hWnd, NULL)
-                              ? TRUE
-                              : FALSE}),
-                sizeof(DWORD));
+            POINT _pt = {};
+            GetCursorPos(&_pt);
+            UINT cmd = TrackPopupMenu(hMenu, TPM_LEFTALIGN | TPM_TOPALIGN | TPM_LEFTBUTTON | TPM_RETURNCMD,
+                                      _pt.x, _pt.y, 0, hWnd, NULL);
+
+            if (cmd == CMD_ON)
+            {
+                _state_on = TRUE;
+                if (_hThread) ResumeThread(_hThread);
+            }
+            else if (cmd == CMD_OFF)
+            {
+                _state_on = FALSE;
+                if (IsGameRunning())
+                {
+                    if (_hThread) SuspendThread(_hThread);
+                    KillSteamHelpers();
+                }
+            }
 
             DestroyMenu(hMenu);
         }
@@ -64,6 +114,8 @@ static VOID CALLBACK WinEventProc(HWINEVENTHOOK hWinEventHook, DWORD event, HWND
     CloseHandle(CreateThread(NULL, 0, ThreadProc, (LPVOID)FALSE, 0, NULL));
 
     HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, dwEventThread);
+    _hThread = hThread;
+
     HKEY hKey = NULL;
     RegOpenKeyExW(HKEY_CURRENT_USER, L"SOFTWARE\\Valve\\Steam", REG_OPTION_NON_VOLATILE, KEY_NOTIFY | KEY_QUERY_VALUE,
                   &hKey);
@@ -72,30 +124,22 @@ static VOID CALLBACK WinEventProc(HWINEVENTHOOK hWinEventHook, DWORD event, HWND
     {
         BOOL _ = FALSE;
         RegGetValueW(hKey, NULL, L"RunningAppID", RRF_RT_REG_DWORD, NULL, (PVOID)&_, &((DWORD){sizeof(BOOL)}));
-        (_ ? SuspendThread : ResumeThread)(hThread);
+
         if (_)
         {
-            WTS_PROCESS_INFOW *pProcessInfo = {};
-            DWORD $ = {};
-
-            WTSEnumerateProcessesW(WTS_CURRENT_SERVER_HANDLE, 0, 1, &pProcessInfo, &$);
-            for (DWORD _ = {}; _ < $; _++)
-                if (CompareStringOrdinal(pProcessInfo[_].pProcessName, -1, L"steamwebhelper.exe", -1, TRUE) ==
-                    CSTR_EQUAL)
-                {
-                    HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE, FALSE,
-                                                  pProcessInfo[_].ProcessId);
-
-                    PROCESS_BASIC_INFORMATION _ = {};
-                    NtQueryInformationProcess(hProcess, ProcessBasicInformation, &_, sizeof(PROCESS_BASIC_INFORMATION),
-                                              NULL);
-
-                    if (_.InheritedFromUniqueProcessId == GetCurrentProcessId())
-                        TerminateProcess(hProcess, EXIT_SUCCESS);
-
-                    CloseHandle(hProcess);
-                }
-            WTSFreeMemory(pProcessInfo);
+            if (_state_on)
+            {
+                if (hThread) ResumeThread(hThread);
+            }
+            else
+            {
+                if (hThread) SuspendThread(hThread);
+                KillSteamHelpers();
+            }
+        }
+        else
+        {
+            if (hThread) ResumeThread(hThread);
         }
     }
 }
