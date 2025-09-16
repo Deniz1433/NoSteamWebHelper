@@ -1,3 +1,18 @@
+# NoSteamWebHelper (Fork)
+
+This is a fork of Aetopia/NoSteamWebHelper.
+
+What’s Different in This Fork?
+
+Original behavior: When you launch a game, CEF is closed immediately. To bring it back, you must use the tray icon to turn it on again.
+
+Fork behavior: You can choose the "Steam on" state from the tray menu. If set to on, CEF will stay open even when you launch a game. If set to off, CEF will be closed when a game is running.
+
+By default, the program starts in the "Steam off" state.
+
+For certain games, you might want to keep the Steam UI running (e.g. to handle friend invites). This fork lets you do that directly, without the program first closing CEF and forcing you to turn it back on.
+
+
 # NoSteamWebHelper
  A program that disables Steam's CEF/Chromium Embedded Framework.
 
