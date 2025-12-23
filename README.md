@@ -28,19 +28,18 @@ This way, Steam is still accessible to use.
 > - You may also manually toggle the CEF via a tray icon.
 > - To prevent the CEF from automatically showing when restored, pass `-silent` to Steam.
 
-# Build
-1. Install [MSYS2](https://www.msys2.org/) & [UPX](https://upx.github.io/) for optional compression.
-2. Update the MSYS2 Environment until there are no pending updates using:
+## Build
+1. Install & update [MSYS2](https://www.msys2.org):
 
     ```bash
     pacman -Syu --noconfirm
     ```
 
-3. Install GCC i686 using:
+3. Install [GCC](https://gcc.gnu.org) & [MinHook](https://github.com/TsudaKageyu/minhook):
 
     ```bash
-    pacman -S mingw-w64-i686-gcc --noconfirm
+    pacman -Syu mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-MinHook --noconfirm
     ```
 
-4. Make sure `<MSYS2 Installation Directory>\mingw32\bin` is added to the Windows `PATH` environment variable.
-5. Run [`Build.cmd`](Build.cmd).
+
+3. Start MSYS2's `UCRT64` environment & run `Build.cmd`.
