@@ -1,45 +1,30 @@
-# NoSteamWebHelper
- A program that disables Steam's CEF/Chromium Embedded Framework.
+# NoSteamWebHelper (Fork)
 
-## Aim
-This program was created with the intent of replacing of Steam's command-line parameter `-no-browser` which was [removed.](https://steamcommunity.com/groups/SteamClientBeta/discussions/3/3710433479207750727/?ctp=42)
+This is a fork of [Aetopia/NoSteamWebHelper](https://github.com/Aetopia/NoSteamWebHelper). Refer to the original repository for the base documentation and project concept.
 
+## Key Differences
 
-## How does NoSteamWebHelper kill or disable the CEF/Chromium Embedded Framework? 
+This fork adds two states:
 
-The dynamic link library toggles the CEF depending if an is app running or not.
+* **Steam On:** Steam Web Helper is allowed to run. It will **not** be killed when a game is launched. If it was previously off, selecting this will immediately restore it.
+* **Steam Off:** Steam Web Helper is automatically killed when a game is launched. If it was previously on while a game is running, selecting this will immediately kill it.
 
-- If an app is running then the CEF is disabled.
+The last chosen state persists across restarts, acting as the default for next time.
 
-- If an app is not running then the CEF is enabled.
+## Usage
 
-This way, Steam is still accessible to use.
-    
-# Usage
-1. Download the latest release from [GitHub Releases](https://github.com/Aetopia/NoSteamWebHelper/releases).
-
-2. Place `umpdc.dll` in your Steam installation directory where `steam.exe` is located.
-
-3. Make sure Steam is fully closed and launch a new instance of Steam.
-
-4. Start up an app and the CEF will be toggled accordingly.
-
-> [!NOTE]
-> - You may also manually toggle the CEF via a tray icon.
-> - To prevent the CEF from automatically showing when restored, pass `-silent` to Steam.
+1.  Download the latest `umpdc.dll` from the [Releases](https://github.com/Deniz1433/NoSteamWebHelper/releases) page.
+2.  Place `umpdc.dll` in your Steam installation directory (the same folder as `steam.exe`).
+3.  Ensure Steam is fully closed, then launch it.
+4.  **Right-click the Tray Icon** (which looks like a standard application icon) to toggle the persistent state.
 
 ## Build
-1. Install & update [MSYS2](https://www.msys2.org):
 
+To compile this fork using **MSYS2**:
+
+1.  Install the 64-bit UCRT toolchain:
     ```bash
-    pacman -Syu --noconfirm
+    pacman -Syu mingw-w64-ucrt-x86_64-gcc --noconfirm
     ```
-
-3. Install [GCC](https://gcc.gnu.org) & [MinHook](https://github.com/TsudaKageyu/minhook):
-
-    ```bash
-    pacman -Syu mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-MinHook --noconfirm
-    ```
-
-
-3. Start MSYS2's `UCRT64` environment & run `Build.cmd`.
+2.  Open the **UCRT64** terminal environment.
+3.  Run `build.cmd`.
